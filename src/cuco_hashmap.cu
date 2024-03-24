@@ -1,12 +1,9 @@
+#include <thrust/iterator/zip_iterator.h>
 #include <cuco/static_map.cuh>
 #include <iostream>
-#include "cuco_hashmap.h"
 
-#include <thrust/device_vector.h>
-#include <thrust/equal.h>
-#include <thrust/iterator/zip_iterator.h>
-#include <thrust/sequence.h>
-#include <thrust/transform.h>
+#include "common.h"
+#include "cuco_hashmap.h"
 
 template <typename Key, typename Value>
 class CUCOHashmap : public Hashmap {
@@ -29,6 +26,12 @@ class CUCOHashmap : public Hashmap {
     auto zipped = thrust::make_zip_iterator(
         thrust::make_tuple(keys.data_ptr<Key>(), values.data_ptr<Value>()));
     map_->insert(zipped, zipped + numel);
+
+    // Set property
+    key_options_ = keys.options();
+    value_options_ = values.options();
+    capacity_ = capacity;
+    memory_usage_ = 100;  // for test
   };
 
   ~CUCOHashmap() { delete map_; };
@@ -41,35 +44,36 @@ class CUCOHashmap : public Hashmap {
     return result;
   };
 
-  int64_t get_memory_usage() { return memory_usage_; }
-
  private:
   torch::TensorOptions key_options_;
   torch::TensorOptions value_options_;
-  int64_t memory_usage_;
-  int64_t capacity_;
+  // int64_t memory_usage_;
+  // int64_t capacity_;
   map_type* map_;
 };
 
-/*
-template <typename Key, typename Value>
-CUCOHashmap<Key, Value>::CUCOHashmap(torch::Tensor keys, torch::Tensor values,
-                                     double load_factor) {
-
-}
-
-template <typename Key, typename Value>
-torch::Tensor CUCOHashmap<Key, Value>::query(torch::Tensor requests) {
-
-}
-*/
-
 CUCOHashmapWrapper::CUCOHashmapWrapper(torch::Tensor keys, torch::Tensor values,
                                        double load_factor) {
-  map_ = new CUCOHashmap<int32_t, int32_t>(keys, values, load_factor);
+  CHECK_CUDA(keys);
+  CHECK_CUDA(values);
+  key_type_ = keys.dtype();
+  value_type_ = values.dtype();
+
+  INTEGER_TYPE_SWITCH(key_type_, Key, {
+    INTEGER_TYPE_SWITCH(value_type_, Value, {
+      map_ = new CUCOHashmap<Key, Value>(keys, values, load_factor);
+    });
+  });
 }
 
 torch::Tensor CUCOHashmapWrapper::query(torch::Tensor requests) {
-  CUCOHashmap<int32_t, int32_t>* map = (CUCOHashmap<int32_t, int32_t>*)map_;
-  return map->query(requests);
+  CHECK_CUDA(requests);
+  INTEGER_TYPE_SWITCH(key_type_, Key, {
+    INTEGER_TYPE_SWITCH(value_type_, Value, {
+      auto map = (CUCOHashmap<Key, Value>*)map_;
+      return map->query(requests.to(key_type_));
+    });
+  });
+
+  return torch::Tensor();
 }
