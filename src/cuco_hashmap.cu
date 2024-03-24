@@ -120,3 +120,11 @@ torch::Tensor CUCOHashmapWrapper::query(torch::Tensor requests) {
 
   return torch::Tensor();
 }
+
+CUCOHashmapWrapper::~CUCOHashmapWrapper() {
+  INTEGER_TYPE_SWITCH(key_type_, Key, {
+    INTEGER_TYPE_SWITCH(value_type_, Value, {
+      delete (CUCOHashmap<Key, Value>*)map_;
+    });
+  });
+};
