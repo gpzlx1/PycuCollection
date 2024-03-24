@@ -11,7 +11,7 @@ class CUCOHashmapWrapper {
  public:
   CUCOHashmapWrapper(torch::Tensor keys, torch::Tensor values,
                      double load_factor);
-  ~CUCOHashmapWrapper() { delete map_; };
+  ~CUCOHashmapWrapper();
   torch::Tensor query(torch::Tensor requests);
 
   int64_t get_capacity() { return map_->capacity_; }
