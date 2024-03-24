@@ -1,6 +1,8 @@
 cmake_minimum_required(VERSION 3.15.0)
 project(bght_with_torch LANGUAGES CUDA CXX)
 
+include(cmake/CPM.cmake)
+
 # set flag
 set(CMAKE_CXX_FLAGS "-Wall -Wextra")
 set(CMAKE_CXX_FLAGS_DEBUG "-g")
@@ -38,9 +40,16 @@ message(STATUS "find_pybind11.py output: ${PYBIND_CMAKE_DIR}")
 set(pybind11_DIR ${PYBIND_CMAKE_DIR})
 find_package(pybind11 REQUIRED)
 
-# set bght
-add_subdirectory(third_party/BGHT)
-list(APPEND BGHT_EXTERNAL_LIB bght)
+# set cuco
+CPMAddPackage(
+  NAME cuco
+  GITHUB_REPOSITORY NVIDIA/cuCollections
+  GIT_TAG dev
+  OPTIONS
+     "BUILD_TESTS OFF"
+     "BUILD_BENCHMARKS OFF"
+     "BUILD_EXAMPLES OFF"
+)
 
 # Define our library target
 file(GLOB BGHT_SRC
@@ -59,3 +68,4 @@ target_compile_features(BGHTLib PRIVATE cxx_std_17)
 
 # Link against LibTorch
 target_link_libraries(BGHTLib PRIVATE ${BGHT_EXTERNAL_LIB})
+target_link_libraries(BGHTLib PRIVATE cuco)
