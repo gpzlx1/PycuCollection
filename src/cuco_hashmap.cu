@@ -1,3 +1,4 @@
+#include <c10/cuda/CUDACachingAllocator.h>
 #include <thrust/iterator/zip_iterator.h>
 #include <cuco/static_map.cuh>
 #include <iostream>
@@ -5,7 +6,6 @@
 #include "common.h"
 #include "cuco_hashmap.h"
 
-std::unordered_map<unsigned int64_t, torch::Tensor> tensorMemoryPool;
 int64_t temp_size = 0;
 
 template <typename T>
@@ -19,21 +19,19 @@ class torch_allocator {
   torch_allocator(torch_allocator<U> const&) noexcept {}
 
   value_type* allocate(std::size_t n) {
-    int64_t numel =
-        (sizeof(value_type) * n + sizeof(int64_t)) / sizeof(int64_t);
-    torch::Tensor tensor = torch::empty(
-        {numel},
-        torch::TensorOptions().device(torch::kCUDA).dtype(torch::kInt64));
-    value_type* p = reinterpret_cast<value_type*>(tensor.data_ptr<int64_t>());
-    tensorMemoryPool[(unsigned int64_t)p] = tensor;
-    temp_size += tensor.numel() * tensor.element_size();
+    value_type* p = reinterpret_cast<value_type*>(
+        torch_cuda_allocator->raw_allocate(sizeof(value_type) * n));
+    temp_size += n * sizeof(value_type);
     return p;
   }
 
   void deallocate(value_type* p, std::size_t) {
-    torch::Tensor tensor = tensorMemoryPool[(unsigned int64_t)p];
-    tensorMemoryPool.erase((unsigned int64_t)p);
+    torch_cuda_allocator->raw_deallocate(p);
   }
+
+ private:
+  c10::cuda::CUDACachingAllocator::CUDAAllocator* torch_cuda_allocator =
+      c10::cuda::CUDACachingAllocator::get();
 };
 
 template <typename T, typename U>
