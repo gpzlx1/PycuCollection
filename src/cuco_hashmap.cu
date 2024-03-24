@@ -1,12 +1,49 @@
+#include <c10/cuda/CUDACachingAllocator.h>
+#include <thrust/iterator/zip_iterator.h>
 #include <cuco/static_map.cuh>
 #include <iostream>
+
+#include "common.h"
 #include "cuco_hashmap.h"
 
-#include <thrust/device_vector.h>
-#include <thrust/equal.h>
-#include <thrust/iterator/zip_iterator.h>
-#include <thrust/sequence.h>
-#include <thrust/transform.h>
+int64_t temp_size = 0;
+
+template <typename T>
+class torch_allocator {
+ public:
+  using value_type = T;
+
+  torch_allocator() = default;
+
+  template <class U>
+  torch_allocator(torch_allocator<U> const&) noexcept {}
+
+  value_type* allocate(std::size_t n) {
+    value_type* p = reinterpret_cast<value_type*>(
+        torch_cuda_allocator->raw_allocate(sizeof(value_type) * n));
+    temp_size += n * sizeof(value_type);
+    return p;
+  }
+
+  void deallocate(value_type* p, std::size_t) {
+    torch_cuda_allocator->raw_deallocate(p);
+  }
+
+ private:
+  c10::cuda::CUDACachingAllocator::CUDAAllocator* torch_cuda_allocator =
+      c10::cuda::CUDACachingAllocator::get();
+};
+
+template <typename T, typename U>
+bool operator==(torch_allocator<T> const&, torch_allocator<U> const&) noexcept {
+  return true;
+}
+
+template <typename T, typename U>
+bool operator!=(torch_allocator<T> const& lhs,
+                torch_allocator<U> const& rhs) noexcept {
+  return not(lhs == rhs);
+}
 
 template <typename Key, typename Value>
 class CUCOHashmap : public Hashmap {
@@ -14,7 +51,7 @@ class CUCOHashmap : public Hashmap {
   using map_type = cuco::static_map<
       Key, Value, std::size_t, cuda::thread_scope_device, thrust::equal_to<Key>,
       cuco::linear_probing<4, cuco::default_hash_function<Key>>,
-      cuco::cuda_allocator<cuco::pair<Key, Value>>, cuco::storage<1>>;
+      torch_allocator<cuco::pair<Key, Value>>, cuco::storage<1>>;
 
   CUCOHashmap(torch::Tensor keys, torch::Tensor values, double load_factor) {
     Key constexpr empty_key_sentinel = -1;
@@ -24,11 +61,18 @@ class CUCOHashmap : public Hashmap {
     std::size_t const capacity = std::ceil(numel / load_factor);
 
     // Create a cuco::static_map
+    temp_size = 0;
     map_ = new map_type(capacity, cuco::empty_key{empty_key_sentinel},
                         cuco::empty_value{empty_value_sentinel});
     auto zipped = thrust::make_zip_iterator(
         thrust::make_tuple(keys.data_ptr<Key>(), values.data_ptr<Value>()));
     map_->insert(zipped, zipped + numel);
+
+    // Set property
+    key_options_ = keys.options();
+    value_options_ = values.options();
+    capacity_ = capacity;
+    memory_usage_ = temp_size;  // for test
   };
 
   ~CUCOHashmap() { delete map_; };
@@ -41,35 +85,36 @@ class CUCOHashmap : public Hashmap {
     return result;
   };
 
-  int64_t get_memory_usage() { return memory_usage_; }
-
  private:
   torch::TensorOptions key_options_;
   torch::TensorOptions value_options_;
-  int64_t memory_usage_;
-  int64_t capacity_;
+  // int64_t memory_usage_;
+  // int64_t capacity_;
   map_type* map_;
 };
 
-/*
-template <typename Key, typename Value>
-CUCOHashmap<Key, Value>::CUCOHashmap(torch::Tensor keys, torch::Tensor values,
-                                     double load_factor) {
-
-}
-
-template <typename Key, typename Value>
-torch::Tensor CUCOHashmap<Key, Value>::query(torch::Tensor requests) {
-
-}
-*/
-
 CUCOHashmapWrapper::CUCOHashmapWrapper(torch::Tensor keys, torch::Tensor values,
                                        double load_factor) {
-  map_ = new CUCOHashmap<int32_t, int32_t>(keys, values, load_factor);
+  CHECK_CUDA(keys);
+  CHECK_CUDA(values);
+  key_type_ = keys.dtype();
+  value_type_ = values.dtype();
+
+  INTEGER_TYPE_SWITCH(key_type_, Key, {
+    INTEGER_TYPE_SWITCH(value_type_, Value, {
+      map_ = new CUCOHashmap<Key, Value>(keys, values, load_factor);
+    });
+  });
 }
 
 torch::Tensor CUCOHashmapWrapper::query(torch::Tensor requests) {
-  CUCOHashmap<int32_t, int32_t>* map = (CUCOHashmap<int32_t, int32_t>*)map_;
-  return map->query(requests);
+  CHECK_CUDA(requests);
+  INTEGER_TYPE_SWITCH(key_type_, Key, {
+    INTEGER_TYPE_SWITCH(value_type_, Value, {
+      auto map = (CUCOHashmap<Key, Value>*)map_;
+      return map->query(requests.to(key_type_));
+    });
+  });
+
+  return torch::Tensor();
 }

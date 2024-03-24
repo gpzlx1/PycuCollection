@@ -8,9 +8,40 @@ values = keys + 1
 print(keys)
 print(values)
 
+# Test 1
+keys = keys.int()
+values = values.int()
 hashmap = PyCUCOLib.CUCOStaticHashmap(keys, values, 0.5)
-print(0)
+print()
 print(hashmap)
+print(hashmap.query(keys.long() + 1))
 
-print(hashmap.query(keys))
-print(hashmap.query(keys + 1))
+# Test 2
+keys = keys.long()
+values = values.int()
+hashmap = PyCUCOLib.CUCOStaticHashmap(keys, values, 0.5)
+print()
+print(hashmap)
+print(hashmap.query(keys.long() + 1))
+
+# Test 3
+keys = keys.int()
+values = values.long()
+hashmap = PyCUCOLib.CUCOStaticHashmap(keys, values, 0.5)
+print()
+print(hashmap)
+print(hashmap.query(keys.long() + 1))
+
+# Test 4
+keys = keys.long()
+values = values.long()
+hashmap = PyCUCOLib.CUCOStaticHashmap(keys, values, 0.5)
+print()
+print(hashmap)
+print(hashmap.query(keys.long() + 1))
+
+
+# Test 5
+print()
+print(hashmap.capacity())
+print(hashmap.memory_usage())

@@ -1,7 +1,11 @@
 #pragma once
 #include <torch/extension.h>
 
-class Hashmap {};
+class Hashmap {
+ public:
+  int64_t memory_usage_;
+  int64_t capacity_;
+};
 
 class CUCOHashmapWrapper {
  public:
@@ -9,8 +13,12 @@ class CUCOHashmapWrapper {
                      double load_factor);
   ~CUCOHashmapWrapper() { delete map_; };
   torch::Tensor query(torch::Tensor requests);
-  // int64_t get_memory_usage();
+
+  int64_t get_capacity() { return map_->capacity_; }
+  int64_t get_memory_usage() { return map_->memory_usage_; }
 
  private:
   Hashmap* map_;
+  caffe2::TypeMeta key_type_;
+  caffe2::TypeMeta value_type_;
 };
