@@ -43,14 +43,14 @@ class CMakeBuild(build_ext):
 
 
 setup(
-    name="BGHT",
+    name="PyCUCO",
     version="0.0.1",
     author="",
     author_email="",
     description="",
     long_description="",
     packages=find_packages(),
-    ext_modules=[CMakeExtension("BGHTLib", "..")],
+    ext_modules=[CMakeExtension("PyCUCOLib", "..")],
     cmdclass={"build_ext": CMakeBuild},
     zip_safe=False,
 )

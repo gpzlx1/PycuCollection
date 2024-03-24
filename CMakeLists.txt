@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.15.0)
-project(bght_with_torch LANGUAGES CUDA CXX)
+project(PyCUCO LANGUAGES CUDA CXX)
 
 include(cmake/CPM.cmake)
 
@@ -11,7 +11,7 @@ set(CMAKE_BUILD_TYPE Release)
 
 # find python
 find_package(Python 3.6 COMPONENTS Interpreter Development REQUIRED)
-set(PYTHON_INTERP /home/gpzlx1/workplace/BGHT-with-torch/venv/bin/python)
+set(PYTHON_INTERP python)
 message(STATUS "Using Python interpreter: ${PYTHON_INTERP}")
 
 # find torch
@@ -28,7 +28,7 @@ set(Torch_DIR "${TORCH_PREFIX}/Torch")
 find_package(Torch REQUIRED)
 find_library(TORCH_PYTHON_LIBRARY torch_python PATHS "${TORCH_INSTALL_PREFIX}/lib")
 message(STATUS "TORCH_PYTHON_LIBRARY: ${TORCH_PYTHON_LIBRARY}")
-list(APPEND BGHT_EXTERNAL_LIB ${TORCH_LIBRARIES} ${TORCH_PYTHON_LIBRARY})
+list(APPEND PyCUCO_EXTERNAL_LIB ${TORCH_LIBRARIES} ${TORCH_PYTHON_LIBRARY})
 
 # find pybind11
 file(TO_NATIVE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/scripts/find_pybind11.py FIND_PYBIND_PY)
@@ -52,20 +52,20 @@ CPMAddPackage(
 )
 
 # Define our library target
-file(GLOB BGHT_SRC
+file(GLOB PyCUCO_SRC
   src/*.cu
   src/*.cc
 )
-pybind11_add_module(BGHTLib ${BGHT_SRC})
-set_target_properties(BGHTLib PROPERTIES CUDA_SEPARABLE_COMPILATION ON)
-set_target_properties(BGHTLib PROPERTIES CUDA_STANDARD 17)
-set_target_properties(BGHTLib PROPERTIES POSITION_INDEPENDENT_CODE ON)
+pybind11_add_module(PyCUCOLib ${PyCUCO_SRC})
+set_target_properties(PyCUCOLib PROPERTIES CUDA_SEPARABLE_COMPILATION ON)
+set_target_properties(PyCUCOLib PROPERTIES CUDA_STANDARD 17)
+set_target_properties(PyCUCOLib PROPERTIES POSITION_INDEPENDENT_CODE ON)
 TARGET_COMPILE_OPTIONS(
-  BGHTLib PRIVATE $<$<COMPILE_LANGUAGE:CUDA>:--expt-extended-lambda>)
+  PyCUCOLib PRIVATE $<$<COMPILE_LANGUAGE:CUDA>:--expt-extended-lambda>)
 
 # Enable C++17
-target_compile_features(BGHTLib PRIVATE cxx_std_17)
+target_compile_features(PyCUCOLib PRIVATE cxx_std_17)
 
 # Link against LibTorch
-target_link_libraries(BGHTLib PRIVATE ${BGHT_EXTERNAL_LIB})
-target_link_libraries(BGHTLib PRIVATE cuco)
+target_link_libraries(PyCUCOLib PRIVATE ${PyCUCO_EXTERNAL_LIB})
+target_link_libraries(PyCUCOLib PRIVATE cuco)

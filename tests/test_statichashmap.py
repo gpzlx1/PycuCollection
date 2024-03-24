@@ -1,5 +1,5 @@
 import torch
-import BGHTLib
+import PyCUCOLib
 
 torch.manual_seed(32)
 
@@ -8,7 +8,7 @@ values = keys + 1
 print(keys)
 print(values)
 
-hashmap = BGHTLib.CUCOStaticHashmap(keys, values, 0.5)
+hashmap = PyCUCOLib.CUCOStaticHashmap(keys, values, 0.5)
 print(0)
 print(hashmap)
 

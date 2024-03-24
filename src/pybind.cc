@@ -5,7 +5,7 @@
 
 namespace py = pybind11;
 
-PYBIND11_MODULE(BGHTLib, m) {
+PYBIND11_MODULE(PyCUCOLib, m) {
   py::class_<CUCOHashmapWrapper>(m, "CUCOStaticHashmap")
       .def(py::init<torch::Tensor, torch::Tensor, double>())
       .def("query", &CUCOHashmapWrapper::query);
