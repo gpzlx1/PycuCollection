@@ -7,7 +7,10 @@ print(keys)
 print(values)
 
 hashmap = BGHTLib.BGHTHashmap(keys, values)
-
+print(0)
 print(hashmap)
 
+print(hashmap.query(keys))
 print(hashmap.query(keys + 1))
+
+print(hashmap.memory_usage())
