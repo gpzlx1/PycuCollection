@@ -4,6 +4,7 @@
 #include "cuco_hashmap.h"
 
 namespace py = pybind11;
+using namespace pycuco;
 
 PYBIND11_MODULE(PyCUCOLib, m) {
   py::class_<CUCOHashmapWrapper>(m, "CUCOStaticHashmap")

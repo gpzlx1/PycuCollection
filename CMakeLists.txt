@@ -56,6 +56,11 @@ file(GLOB PyCUCO_SRC
   src/*.cu
   src/*.cc
 )
+set(PyCUCO_INCLUDES "${CMAKE_CURRENT_SOURCE_DIR}/include")
+INCLUDE_DIRECTORIES(
+  ${PyCUCO_INCLUDES}
+)
+
 pybind11_add_module(PyCUCOLib ${PyCUCO_SRC})
 set_target_properties(PyCUCOLib PROPERTIES CUDA_SEPARABLE_COMPILATION ON)
 set_target_properties(PyCUCOLib PROPERTIES CUDA_STANDARD 17)

@@ -1,6 +1,8 @@
 #pragma once
 #include <torch/extension.h>
 
+namespace pycuco {
+
 class Hashmap {
  public:
   int64_t memory_usage_;
@@ -22,3 +24,5 @@ class CUCOHashmapWrapper {
   caffe2::TypeMeta key_type_;
   caffe2::TypeMeta value_type_;
 };
+
+}  // namespace pycuco
